@@ -4,7 +4,8 @@ Watch Do Notify (macOS)
 Simple program to watch a set of files for changes, then execute a bash script and then push an macOS notification with the result
 
 Usage of wdn:
-```  -batch
+``` 
+  -batch
     	bool: should run save as batch job?
   -cmd string
     	string: shell script to run (default "echo hello")
