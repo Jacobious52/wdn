@@ -13,7 +13,7 @@ import (
 const title = "Watch Do Notify"
 
 var logfile = os.DevNull
-var display bool
+var batch *bool
 
 // notify shows an macOS notification
 func notify(subtitle string, text string) {
@@ -26,8 +26,10 @@ func notify(subtitle string, text string) {
 }
 
 // do runs the cmd given by the user
-func do(script string) string {
-	out, err := exec.Command("bash", "-c", script).Output()
+func do(script string, file string) string {
+	cmd := exec.Command("bash", "-c", script)
+	cmd.Args = append(cmd.Args, file)
+	out, err := cmd.Output()
 	if err != nil {
 		log.Println("Failed to run commmand.", err)
 	}
@@ -45,7 +47,7 @@ func getMod(file string) time.Time {
 }
 
 // watch starts watching the files given in a new thread
-func watch(files []string, update chan bool) {
+func watch(files []string, update chan string) {
 	ticker := time.NewTicker(time.Second)
 
 	lastMod := make([]time.Time, len(files))
@@ -67,8 +69,10 @@ func watch(files []string, update chan bool) {
 					// to stop a "save-all" from running too many times
 					if !updated {
 						log.Println("running script\n", f)
-						updated = true
-						update <- true
+						if *batch {
+							updated = true
+						}
+						update <- f
 					}
 				}
 			}
@@ -82,6 +86,7 @@ func main() {
 	script := flag.String("cmd", "echo hello", "string: shell script to run")
 	logFilename := flag.String("log", "/dev/null", "string: logging output file")
 	display := flag.Bool("notify", false, "bool: should push macOS notification?")
+	batch = flag.Bool("batch", false, "bool: should run save as batch job?")
 
 	flag.Parse()
 
@@ -108,11 +113,11 @@ func main() {
 	log.Printf("running on files {%s}\n", strings.Join(files, ", "))
 
 	// do main loop waiting on concurrent watch channel
-	update := make(chan bool)
+	update := make(chan string)
 	watch(files, update)
 	for {
-		<-update // wait for an update
-		output := do(*script)
+		f := <-update // wait for an update
+		output := do(*script, f)
 		if *display {
 			notify(*name, output)
 		}
